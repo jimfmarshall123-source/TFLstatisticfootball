@@ -1,0 +1,85 @@
+:root {
+  --ink: #16211C;
+  --turf: #1E3D2F;
+  --turf-light: #2C5643;
+  --parchment: #EDE7D8;
+  --chalk: #F7F4EB;
+  --gold: #C99A3C;
+  --gold-dim: #A9822F;
+  --brick: #8C3B2E;
+  --line: rgba(22,33,28,0.14);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #F0EEE6;
+    --turf: #7FBF9F;
+    --turf-light: #9FD4B8;
+    --parchment: #16211C;
+    --chalk: #1E2A22;
+    --gold: #D9AE55;
+    --gold-dim: #C99A3C;
+    --brick: #C4695A;
+    --line: rgba(240,238,230,0.16);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink: #F0EEE6;
+  --turf: #7FBF9F;
+  --turf-light: #9FD4B8;
+  --parchment: #16211C;
+  --chalk: #1E2A22;
+  --gold: #D9AE55;
+  --gold-dim: #C99A3C;
+  --brick: #C4695A;
+  --line: rgba(240,238,230,0.16);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--parchment);
+  color: var(--ink);
+}
+
+.sg-display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.02em; }
+.sg-mono { font-family: 'IBM Plex Mono', monospace; }
+::selection { background: var(--gold); color: var(--ink); }
+.sg-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.sg-scroll::-webkit-scrollbar-thumb { background: var(--turf-light); border-radius: 4px; }
+
+.sg-btn {
+  cursor: pointer; border: 1px solid var(--ink); background: transparent; color: var(--ink);
+  font-family: 'IBM Plex Sans', sans-serif; font-weight: 600; font-size: 13px; padding: 8px 14px;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.05s ease;
+}
+.sg-btn:hover { background: var(--ink); color: var(--chalk); }
+.sg-btn:active { transform: translateY(1px); }
+.sg-btn.gold { border-color: var(--gold-dim); background: var(--gold); color: var(--ink); }
+.sg-btn.gold:hover { background: var(--gold-dim); color: var(--chalk); }
+
+.sg-input {
+  font-family: 'IBM Plex Sans', sans-serif; border: 1px solid var(--line); background: var(--chalk);
+  color: var(--ink); padding: 8px 10px; font-size: 13px; outline: none; width: 100%;
+}
+.sg-input:focus { border-color: var(--turf); }
+
+a { color: var(--turf); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* Wide tables/content never force the page to scroll sideways */
+.sg-overflow-x { overflow-x: auto; max-width: 100%; }
+img { max-width: 100%; }
