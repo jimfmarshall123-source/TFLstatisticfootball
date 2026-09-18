@@ -1,8 +1,9 @@
 import { redis, teamKey } from "./_redis.js";
 import { PLAYERS_RAW } from "../src/data.js";
 import { WEEK1_2026_SEEDS } from "../src/week1seeds.js";
+import { isAuthorized } from "./_auth.js";
 
-// POST /api/seed -> merges the bundled Week 1 2026 seed stats into Redis.
+// POST /api/seed -> merges the bundled Week 1 2026 seed stats into Redis (admin only).
 // Only writes fields that are missing or different from what's already saved,
 // so it's always safe to click again after the underlying seed data changes.
 export default async function handler(req, res) {
@@ -14,6 +15,10 @@ export default async function handler(req, res) {
   }
   if (req.method !== "POST") {
     res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+  if (!isAuthorized(req)) {
+    res.status(401).json({ error: "Not authorized. This site is read-only except for the admin." });
     return;
   }
 

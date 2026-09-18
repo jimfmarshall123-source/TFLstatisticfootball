@@ -53,6 +53,59 @@ const POSITION_ORDER = {
   "Special Teams": ["Place Kicker", "Punter", "KO Returner", "Punt Returner"],
 };
 
+// Standard NFL position abbreviations, for display only — the full names above
+// are still what all the grouping/sorting/stat-field logic matches against.
+const POSITION_ABBREV = {
+  "QuarterBack": "QB",
+  "HalfBack": "RB",
+  "FullBack": "FB",
+  "Blocking Back": "FB",
+  "Split End": "WR",
+  "Flanker": "WR",
+  "Tight End": "TE",
+  "Left Tackle": "T",
+  "Left Guard": "G",
+  "Center": "C",
+  "Right Guard": "G",
+  "Right Tackle": "T",
+  "Off Tackle": "T",
+  "Guard": "G",
+  "Left End": "DE",
+  "Right End": "DE",
+  "Def End": "DE",
+  "Def Tackle": "DT",
+  "Nose Tackle": "NT",
+  "Left O LB": "OLB",
+  "Right O LB": "OLB",
+  "O LB": "OLB",
+  "Left I LB": "LB",
+  "Right I LB": "LB",
+  "I LB": "LB",
+  "Left LB": "LB",
+  "Right LB": "LB",
+  "Middle LB": "LB",
+  "LB": "LB",
+  "Left CB": "CB",
+  "Right CB": "CB",
+  "CB": "CB",
+  "1st Defensive Back": "DB",
+  "Free Safety": "S",
+  "Strong Safety": "S",
+  "Safety": "S",
+  "Place Kicker": "K",
+  "Punter": "P",
+  "KO Returner": "KR",
+  "Punt Returner": "PR",
+};
+
+function abbrevPosition(positionCombo) {
+  if (!positionCombo) return positionCombo;
+  return positionCombo
+    .split(",")
+    .map(p => POSITION_ABBREV[p.trim()] || p.trim())
+    .join(", ");
+}
+
 function sortRoster(players, group) {
   const order = POSITION_ORDER[group] || [];
   return [...players].sort((a, b) => {
@@ -79,11 +132,27 @@ async function loadAllStats() {
   } catch (e) { return { data: {}, error: (e && e.message) ? e.message : String(e) }; }
 }
 
-async function savePlayerStat(team, id, entry) {
+const ADMIN_KEY_STORAGE = "tfl-admin-key";
+
+function getStoredAdminKey() {
+  try { return localStorage.getItem(ADMIN_KEY_STORAGE) || ""; } catch (e) { return ""; }
+}
+
+async function verifyAdminKey(key) {
+  try {
+    const res = await fetch("/api/admin-check", {
+      method: "POST",
+      headers: { "x-admin-key": key },
+    });
+    return res.ok;
+  } catch (e) { return false; }
+}
+
+async function savePlayerStat(team, id, entry, adminKey) {
   try {
     const res = await fetch("/api/stats", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-admin-key": adminKey || "" },
       body: JSON.stringify({ team, id, entry }),
     });
     const json = await res.json();
@@ -92,9 +161,9 @@ async function savePlayerStat(team, id, entry) {
   } catch (e) { return { ok: false, error: (e && e.message) ? e.message : String(e) }; }
 }
 
-async function runWeek1Seed() {
+async function runWeek1Seed(adminKey) {
   try {
-    const res = await fetch("/api/seed", { method: "POST" });
+    const res = await fetch("/api/seed", { method: "POST", headers: { "x-admin-key": adminKey || "" } });
     const json = await res.json();
     if (!res.ok) return { added: 0, updated: 0, unchanged: 0, error: json.error || `HTTP ${res.status}` };
     return { ...json, error: null };
@@ -186,7 +255,7 @@ function Home({ onSelectTeam, onOpenLeaderboards }) {
                   onMouseEnter={e => e.currentTarget.style.background = "var(--parchment)"}
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
-                  <span><strong>{p.name}</strong> <span style={{ color: "var(--turf)" }}>· {p.position}</span></span>
+                  <span><strong>{p.name}</strong> <span style={{ color: "var(--turf)" }}>· {abbrevPosition(p.position)}</span></span>
                   <span className="sg-mono" style={{ color: "var(--turf-light)" }}>{p.team}</span>
                 </div>
               ))}
@@ -314,10 +383,10 @@ function PlayerRow({ player, entry, onSave, highlighted, pffRank }) {
   return (
     <div style={{ borderBottom: "1px solid var(--line)" }}>
       <div
-        onClick={() => setOpen(o => !o)}
+        onClick={onSave ? () => setOpen(o => !o) : undefined}
         style={{
           display: "grid", gridTemplateColumns: "1.3fr 1.1fr 1.6fr 0.5fr 0.5fr", gap: 10,
-          padding: "9px 4px", cursor: "pointer", alignItems: "center",
+          padding: "9px 4px", cursor: onSave ? "pointer" : "default", alignItems: "center",
           background: highlighted ? "rgba(201,154,60,0.18)" : "transparent",
           fontSize: 13.5,
         }}
@@ -328,7 +397,7 @@ function PlayerRow({ player, entry, onSave, highlighted, pffRank }) {
             {player.nflTeam} '25
           </span>
         </span>
-        <span style={{ color: "var(--turf)" }}>{player.position}</span>
+        <span style={{ color: "var(--turf)" }}>{abbrevPosition(player.position)}</span>
         <span className="sg-mono" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {entry?.statLine || <span style={{ color: "var(--line)" }}>no 2026 stats logged yet</span>}
         </span>
@@ -339,7 +408,7 @@ function PlayerRow({ player, entry, onSave, highlighted, pffRank }) {
           {pffRank ? `#${pffRank}` : "—"}
         </span>
       </div>
-      {open && (
+      {open && onSave && (
         <div style={{ padding: "6px 4px 16px" }}>
           <div className="sg-mono" style={{ fontSize: 11, color: "var(--turf-light)", marginBottom: 8 }}>
             2025 season (reference only): {player.stat2025 ? player.stat2025 : (player.keyStat || "no logged stats")}
@@ -505,7 +574,7 @@ const SPECIAL_TEAMS_CATEGORIES = [
    round-tripping to the browser 24 times). This just calls it.
 --------------------------------------------------------------- */
 
-function Leaderboards({ onBack, onSelectTeam }) {
+function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
   const [allStats, setAllStats] = useState(null);
   const [seeding, setSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState(null);
@@ -527,7 +596,7 @@ function Leaderboards({ onBack, onSelectTeam }) {
     setSeeding(true);
     setLoadError(null);
     try {
-      const result = await runWeek1Seed();
+      const result = await runWeek1Seed(adminKey);
       if (result.error) {
         setLoadError(result.error);
       } else {
@@ -591,14 +660,16 @@ function Leaderboards({ onBack, onSelectTeam }) {
           Ranked from the 2026 stat lines and PFF grades league members have logged so far. Numbers only
           show up here once someone enters them on a player's row.
         </p>
-        <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <button className="sg-btn gold" onClick={handleLoadWeek1} disabled={seeding}>
-            {seeding ? "Loading…" : "Load real Week 1 2026 stats"}
-          </button>
-          <span className="sg-mono" style={{ fontSize: 11.5, color: "var(--turf-light)" }}>
-            fills in stat lines for players who actually posted real Week 1 numbers — never overwrites anything already entered
-          </span>
-        </div>
+        {isAdmin && (
+          <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <button className="sg-btn gold" onClick={handleLoadWeek1} disabled={seeding}>
+              {seeding ? "Loading…" : "Load real Week 1 2026 stats"}
+            </button>
+            <span className="sg-mono" style={{ fontSize: 11.5, color: "var(--turf-light)" }}>
+              fills in stat lines for players who actually posted real Week 1 numbers — never overwrites anything already entered
+            </span>
+          </div>
+        )}
         {seedResult && (
           <div className="sg-mono" style={{ fontSize: 12, color: "var(--brick)", marginTop: 8 }}>
             Added stats for {seedResult.added} new player{seedResult.added === 1 ? "" : "s"}, updated {seedResult.updated} existing
@@ -750,7 +821,7 @@ function Leaderboards({ onBack, onSelectTeam }) {
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
                   <span>
-                    <span className="sg-mono" style={{ fontSize: 10.5, color: "var(--turf-light)" }}>{row.position.toUpperCase()}</span>
+                    <span className="sg-mono" style={{ fontSize: 10.5, color: "var(--turf-light)" }}>{abbrevPosition(row.position).toUpperCase()}</span>
                     <br />
                     {row.player.name} <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.player.team}</span>
                   </span>
@@ -768,7 +839,7 @@ function Leaderboards({ onBack, onSelectTeam }) {
 /* ---------------------------------------------------------------
    TEAM VIEW
 --------------------------------------------------------------- */
-function TeamPage({ team, onBack, highlightId }) {
+function TeamPage({ team, onBack, highlightId, isAdmin, adminKey }) {
   const meta = TEAMS[team];
   const roster = useMemo(() => PLAYERS.filter(p => p.team === team), [team]);
   const [fullStats, setFullStats] = useState({}); // all players, all teams — one combined store
@@ -815,8 +886,8 @@ function TeamPage({ team, onBack, highlightId }) {
 
   const handleSaveOne = useCallback(async (id, entry) => {
     setFullStats(prev => ({ ...prev, [id]: entry }));
-    await savePlayerStat(team, id, entry);
-  }, [team]);
+    await savePlayerStat(team, id, entry, adminKey);
+  }, [team, adminKey]);
 
   const handleBulkSave = useCallback(async (entries) => {
     if (entries.length === 0) return;
@@ -828,9 +899,9 @@ function TeamPage({ team, onBack, highlightId }) {
     // Each player gets its own request — small payloads, no risk of one big
     // write clobbering a teammate's concurrent edit.
     for (const e of entries) {
-      await savePlayerStat(team, e.id, { statLine: e.statLine, pff: e.pff, updatedAt: e.updatedAt });
+      await savePlayerStat(team, e.id, { statLine: e.statLine, pff: e.pff, updatedAt: e.updatedAt }, adminKey);
     }
-  }, [team]);
+  }, [team, adminKey]);
 
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 24px 80px" }}>
@@ -880,14 +951,14 @@ function TeamPage({ team, onBack, highlightId }) {
             key={p.id}
             player={p}
             entry={stats[p.id]}
-            onSave={handleSaveOne}
+            onSave={isAdmin ? handleSaveOne : null}
             highlighted={p.id === highlightId}
             pffRank={pffRanks[p.id]}
           />
         ))
       )}
 
-      <ImportPanel team={team} roster={roster} onBulkSave={handleBulkSave} />
+      {isAdmin && <ImportPanel team={team} roster={roster} onBulkSave={handleBulkSave} />}
     </div>
   );
 }
@@ -897,6 +968,36 @@ function TeamPage({ team, onBack, highlightId }) {
 --------------------------------------------------------------- */
 export default function App() {
   const [view, setView] = useState({ page: "home" });
+  const [adminKey, setAdminKey] = useState(() => getStoredAdminKey());
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (adminKey) {
+      verifyAdminKey(adminKey).then(ok => { if (!cancelled) setIsAdmin(ok); });
+    } else {
+      setIsAdmin(false);
+    }
+    return () => { cancelled = true; };
+  }, [adminKey]);
+
+  const handleAdminLogin = async () => {
+    const entered = window.prompt("Admin password:");
+    if (!entered) return;
+    const ok = await verifyAdminKey(entered);
+    if (ok) {
+      try { localStorage.setItem(ADMIN_KEY_STORAGE, entered); } catch (e) {}
+      setAdminKey(entered);
+    } else {
+      window.alert("That password isn't correct.");
+    }
+  };
+
+  const handleAdminLogout = () => {
+    try { localStorage.removeItem(ADMIN_KEY_STORAGE); } catch (e) {}
+    setAdminKey("");
+    setIsAdmin(false);
+  };
 
   const goTeam = (team, highlightId) => setView({ page: "team", team, highlightId });
   const goHome = () => setView({ page: "home" });
@@ -906,13 +1007,24 @@ export default function App() {
     <div className="sg-root" style={{ minHeight: "100vh" }}>
       {view.page === "home" && <Home onSelectTeam={goTeam} onOpenLeaderboards={goLeaderboards} />}
       {view.page === "team" && (
-        <TeamPage team={view.team} onBack={goHome} highlightId={view.highlightId} />
+        <TeamPage team={view.team} onBack={goHome} highlightId={view.highlightId} isAdmin={isAdmin} adminKey={adminKey} />
       )}
       {view.page === "leaderboards" && (
-        <Leaderboards onBack={goHome} onSelectTeam={goTeam} />
+        <Leaderboards onBack={goHome} onSelectTeam={goTeam} isAdmin={isAdmin} adminKey={adminKey} />
       )}
       <footer style={{ textAlign: "center", padding: "20px 0 40px", color: "var(--turf-light)", fontSize: 11.5 }} className="sg-mono">
         2026 TFL LEAGUE · rosters from the Strat-O-Matic league reports · 2026 NFL season stats &amp; PFF grades entered by league members
+        <div style={{ marginTop: 8 }}>
+          {isAdmin ? (
+            <>
+              <span style={{ color: "var(--turf)" }}>admin mode</span>
+              {" · "}
+              <button onClick={handleAdminLogout} className="sg-mono" style={{ background: "none", border: "none", color: "var(--turf-light)", textDecoration: "underline", cursor: "pointer", fontSize: 11.5, padding: 0 }}>log out</button>
+            </>
+          ) : (
+            <button onClick={handleAdminLogin} className="sg-mono" style={{ background: "none", border: "none", color: "var(--turf-light)", textDecoration: "underline", cursor: "pointer", fontSize: 11.5, padding: 0 }}>admin</button>
+          )}
+        </div>
       </footer>
     </div>
   );

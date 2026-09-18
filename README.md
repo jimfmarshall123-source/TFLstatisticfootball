@@ -27,9 +27,16 @@ api/
 
 3. **Import the repo into Vercel** — "Add New Project" → pick the repo → Deploy. Vercel auto-detects this as a Vite project; no configuration needed. It will deploy successfully even before the database is connected (the site will load, but stats won't save yet).
 
-4. **Connect a database.** In your Vercel project dashboard: **Storage → Browse Marketplace → Upstash → Redis**. Connect it to this project. Vercel automatically adds the `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` environment variables and redeploys.
+4. **Connect a database.** In your Vercel project dashboard: **Storage → Browse Marketplace → Upstash → Redis**. Connect it to this project. Vercel automatically adds the Redis credentials and redeploys.
 
-5. **Load Week 1 stats.** Open your live site, go to the Leaderboards page, and click "Load real Week 1 2026 stats." This runs once and populates the database — after that, everyone who opens the link sees the same live data.
+5. **Set an admin password.** Go to Settings → Environment Variables and add a new one:
+   - Name: `ADMIN_KEY`
+   - Value: any password you want (pick something only you know)
+   - Environments: Production (and Preview if you want it there too)
+
+   Then redeploy (Vercel usually does this automatically after adding a variable — if not, trigger it manually from the Deployments tab). This password is what unlocks editing — anyone visiting the site sees a read-only view; clicking "admin" in the footer and entering this password is the only way to edit stats or load new data.
+
+6. **Load Week 1 stats.** Open your live site, click "admin" in the footer, enter your password, go to the Leaderboards page, and click "Load real Week 1 2026 stats." This runs once and populates the database — after that, everyone who opens the link sees the same live data (read-only, unless they know the admin password).
 
 That's it. The link Vercel gives you (something like `your-project.vercel.app`) is now a real, public website anyone can open, with data that persists and updates live for every visitor.
 
