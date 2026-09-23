@@ -83,3 +83,26 @@ a { color: var(--turf); }
 /* Wide tables/content never force the page to scroll sideways */
 .sg-overflow-x { overflow-x: auto; max-width: 100%; }
 img { max-width: 100%; }
+
+/* ---------- Mobile responsiveness ---------- */
+@media (max-width: 640px) {
+  .sg-grid-2col { grid-template-columns: 1fr !important; }
+  .sg-grid-3col { grid-template-columns: 1fr 1fr !important; }
+
+  .sg-player-row-header { display: none !important; }
+
+  .sg-player-row-grid {
+    grid-template-columns: 1fr 1fr 1fr !important;
+    grid-template-areas: "name name name" "stat stat stat" "pos pff rank" !important;
+    row-gap: 4px !important;
+    padding: 12px 4px !important;
+  }
+  .sg-player-row-grid > *:nth-child(1) { grid-area: name; }
+  .sg-player-row-grid > *:nth-child(2) { grid-area: pos; text-align: left !important; }
+  .sg-player-row-grid > *:nth-child(3) {
+    grid-area: stat; white-space: normal !important; overflow: visible !important;
+    text-overflow: clip !important; font-size: 11.5px !important; line-height: 1.4 !important;
+  }
+  .sg-player-row-grid > *:nth-child(4) { grid-area: pff; text-align: left !important; }
+  .sg-player-row-grid > *:nth-child(5) { grid-area: rank; text-align: left !important; }
+}

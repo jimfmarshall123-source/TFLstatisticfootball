@@ -1,7 +1,8 @@
 import { redis, teamKey } from "./_redis.js";
+import { isAuthorized } from "./_auth.js";
 
 // GET  /api/stats?team=Carolina%20Flight        -> { data: { [playerId]: entry } }
-// POST /api/stats  { team, id, entry }           -> upsert one player's entry
+// POST /api/stats  { team, id, entry }           -> upsert one player's entry (admin only)
 export default async function handler(req, res) {
   if (!redis) {
     res.status(500).json({
@@ -24,6 +25,10 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
+      if (!isAuthorized(req)) {
+        res.status(401).json({ error: "Not authorized. This site is read-only except for the admin." });
+        return;
+      }
       const { team, id, entry } = req.body || {};
       if (!team || !id || !entry) {
         res.status(400).json({ error: "Body must include team, id, and entry" });
