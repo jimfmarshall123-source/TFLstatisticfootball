@@ -213,13 +213,13 @@ function Home({ onSelectTeam, onOpenLeaderboards }) {
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "0 24px 64px" }}>
       <header style={{ padding: "48px 0 28px", borderBottom: "2px solid var(--ink)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
           <div className="sg-mono" style={{ fontSize: 12, letterSpacing: "0.12em", color: "var(--turf-light)", marginBottom: 6 }}>
             2026 TFL LEAGUE · LOMBARDI &amp; LANDRY CONFERENCES
           </div>
           <button className="sg-btn gold" onClick={onOpenLeaderboards}>Leaderboards</button>
         </div>
-        <h1 className="sg-display" style={{ fontSize: 64, lineHeight: 0.95, margin: 0, color: "var(--ink)" }}>
+        <h1 className="sg-display" style={{ fontSize: "clamp(34px, 9vw, 64px)", lineHeight: 0.95, margin: 0, color: "var(--ink)" }}>
           TFL LEAGUE
         </h1>
         <p style={{ maxWidth: 580, marginTop: 14, fontSize: 15, color: "var(--turf)" }}>
@@ -267,7 +267,7 @@ function Home({ onSelectTeam, onOpenLeaderboards }) {
       {CONF_ORDER.map(conf => (
         <section key={conf} style={{ marginTop: 40 }}>
           <h2 className="sg-display" style={{ fontSize: 30, margin: "0 0 14px", color: "var(--turf)" }}>{conf} Conference</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 22 }}>
+          <div className="sg-grid-2col" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 22 }}>
             {DIV_ORDER.map(div => (
               <div key={div}>
                 <div className="sg-mono" style={{ fontSize: 11, letterSpacing: "0.1em", color: "var(--turf-light)", marginBottom: 8 }}>
@@ -384,6 +384,7 @@ function PlayerRow({ player, entry, onSave, highlighted, pffRank }) {
     <div style={{ borderBottom: "1px solid var(--line)" }}>
       <div
         onClick={onSave ? () => setOpen(o => !o) : undefined}
+        className="sg-player-row-grid"
         style={{
           display: "grid", gridTemplateColumns: "1.3fr 1.1fr 1.6fr 0.5fr 0.5fr", gap: 10,
           padding: "9px 4px", cursor: onSave ? "pointer" : "default", alignItems: "center",
@@ -394,7 +395,7 @@ function PlayerRow({ player, entry, onSave, highlighted, pffRank }) {
         <span style={{ fontWeight: 600 }}>
           {player.name}
           <span className="sg-mono" style={{ color: "var(--turf-light)", fontSize: 11, marginLeft: 6 }}>
-            {player.nflTeam} '25
+            {player.nflTeam}
           </span>
         </span>
         <span style={{ color: "var(--turf)" }}>{abbrevPosition(player.position)}</span>
@@ -653,7 +654,7 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
         <button className="sg-btn" onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 18 }}>
           <IconBack /> All teams
         </button>
-        <h1 className="sg-display" style={{ fontSize: 48, margin: 0, borderBottom: "4px solid var(--gold)", paddingBottom: 14 }}>
+        <h1 className="sg-display" style={{ fontSize: "clamp(28px, 8vw, 48px)", margin: 0, borderBottom: "4px solid var(--gold)", paddingBottom: 14 }}>
           2026 LEADERBOARDS
         </h1>
         <p style={{ fontSize: 13.5, color: "var(--turf)", marginTop: 10, maxWidth: 640 }}>
@@ -663,10 +664,10 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
         {isAdmin && (
           <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <button className="sg-btn gold" onClick={handleLoadWeek1} disabled={seeding}>
-              {seeding ? "Loading…" : "Load real Week 1 2026 stats"}
+              {seeding ? "Loading…" : "Load real 2026 season stats"}
             </button>
             <span className="sg-mono" style={{ fontSize: 11.5, color: "var(--turf-light)" }}>
-              fills in stat lines for players who actually posted real Week 1 numbers — never overwrites anything already entered
+              fills in season-to-date stat lines from NFL.com for players who've actually played — updates existing entries to the latest totals
             </span>
           </div>
         )}
@@ -697,7 +698,7 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
           <h2 className="sg-display" style={{ fontSize: 28, margin: "0 0 12px", color: "var(--turf)", borderBottom: "2px solid var(--ink)", paddingBottom: 10 }}>
             Offense
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, marginBottom: 40 }}>
+          <div className="sg-grid-2col" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, marginBottom: 40 }}>
             {OFFENSE_CATEGORIES.map(cat => (
               <div key={cat.key}>
                 <h2 className="sg-display" style={{ fontSize: 22, margin: "0 0 8px", color: "var(--turf)" }}>{cat.label}</h2>
@@ -733,7 +734,7 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
           <h2 className="sg-display" style={{ fontSize: 28, margin: "0 0 12px", color: "var(--turf)", borderBottom: "2px solid var(--ink)", paddingBottom: 10 }}>
             Defense
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, marginBottom: 40 }}>
+          <div className="sg-grid-2col" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, marginBottom: 40 }}>
             {DEFENSE_CATEGORIES.map(cat => (
               <div key={cat.key}>
                 <h2 className="sg-display" style={{ fontSize: 22, margin: "0 0 8px", color: "var(--turf)" }}>{cat.label}</h2>
@@ -769,7 +770,7 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
           <h2 className="sg-display" style={{ fontSize: 28, margin: "0 0 12px", color: "var(--turf)", borderBottom: "2px solid var(--ink)", paddingBottom: 10 }}>
             Special Teams
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, marginBottom: 40 }}>
+          <div className="sg-grid-2col" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, marginBottom: 40 }}>
             {SPECIAL_TEAMS_CATEGORIES.map(cat => (
               <div key={cat.key}>
                 <h2 className="sg-display" style={{ fontSize: 22, margin: "0 0 8px", color: "var(--turf)" }}>{cat.label}</h2>
@@ -808,7 +809,7 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
           {pffByPosition.length === 0 ? (
             <div className="sg-mono" style={{ fontSize: 11.5, color: "var(--line)" }}>no PFF grades logged yet</div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "4px 24px" }}>
+            <div className="sg-grid-3col" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "4px 24px" }}>
               {pffByPosition.map(row => (
                 <div
                   key={row.position}
@@ -909,12 +910,12 @@ function TeamPage({ team, onBack, highlightId, isAdmin, adminKey }) {
         <button className="sg-btn" onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 18 }}>
           <IconBack /> All teams
         </button>
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", borderBottom: `4px solid ${meta.color}`, paddingBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", borderBottom: `4px solid ${meta.color}`, paddingBottom: 14, flexWrap: "wrap", gap: 8 }}>
           <div>
             <div className="sg-mono" style={{ fontSize: 12, color: "var(--turf-light)", letterSpacing: "0.1em" }}>
               {meta.conf.toUpperCase()} {meta.div.toUpperCase()}
             </div>
-            <h1 className="sg-display" style={{ fontSize: 48, margin: 0 }}>{team}</h1>
+            <h1 className="sg-display" style={{ fontSize: "clamp(28px, 8vw, 48px)", margin: 0 }}>{team}</h1>
           </div>
           <div className="sg-mono" style={{ fontSize: 12, color: "var(--turf)", textAlign: "right" }}>
             {roster.length} players
@@ -922,7 +923,7 @@ function TeamPage({ team, onBack, highlightId, isAdmin, adminKey }) {
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
         {["Offense", "Defense", "Special Teams"].map(g => (
           <button
             key={g}
@@ -934,7 +935,7 @@ function TeamPage({ team, onBack, highlightId, isAdmin, adminKey }) {
         ))}
       </div>
 
-      <div style={{
+      <div className="sg-player-row-header" style={{
         display: "grid", gridTemplateColumns: "1.3fr 1.1fr 1.6fr 0.5fr 0.5fr", gap: 10,
         padding: "6px 4px", borderBottom: "2px solid var(--ink)", marginBottom: 2,
       }}>
