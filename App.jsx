@@ -53,6 +53,59 @@ const POSITION_ORDER = {
   "Special Teams": ["Place Kicker", "Punter", "KO Returner", "Punt Returner"],
 };
 
+// Standard NFL position abbreviations, for display only — the full names above
+// are still what all the grouping/sorting/stat-field logic matches against.
+const POSITION_ABBREV = {
+  "QuarterBack": "QB",
+  "HalfBack": "RB",
+  "FullBack": "FB",
+  "Blocking Back": "FB",
+  "Split End": "WR",
+  "Flanker": "WR",
+  "Tight End": "TE",
+  "Left Tackle": "T",
+  "Left Guard": "G",
+  "Center": "C",
+  "Right Guard": "G",
+  "Right Tackle": "T",
+  "Off Tackle": "T",
+  "Guard": "G",
+  "Left End": "DE",
+  "Right End": "DE",
+  "Def End": "DE",
+  "Def Tackle": "DT",
+  "Nose Tackle": "NT",
+  "Left O LB": "OLB",
+  "Right O LB": "OLB",
+  "O LB": "OLB",
+  "Left I LB": "LB",
+  "Right I LB": "LB",
+  "I LB": "LB",
+  "Left LB": "LB",
+  "Right LB": "LB",
+  "Middle LB": "LB",
+  "LB": "LB",
+  "Left CB": "CB",
+  "Right CB": "CB",
+  "CB": "CB",
+  "1st Defensive Back": "DB",
+  "Free Safety": "S",
+  "Strong Safety": "S",
+  "Safety": "S",
+  "Place Kicker": "K",
+  "Punter": "P",
+  "KO Returner": "KR",
+  "Punt Returner": "PR",
+};
+
+function abbrevPosition(positionCombo) {
+  if (!positionCombo) return positionCombo;
+  return positionCombo
+    .split(",")
+    .map(p => POSITION_ABBREV[p.trim()] || p.trim())
+    .join(", ");
+}
+
 function sortRoster(players, group) {
   const order = POSITION_ORDER[group] || [];
   return [...players].sort((a, b) => {
@@ -79,11 +132,27 @@ async function loadAllStats() {
   } catch (e) { return { data: {}, error: (e && e.message) ? e.message : String(e) }; }
 }
 
-async function savePlayerStat(team, id, entry) {
+const ADMIN_KEY_STORAGE = "tfl-admin-key";
+
+function getStoredAdminKey() {
+  try { return localStorage.getItem(ADMIN_KEY_STORAGE) || ""; } catch (e) { return ""; }
+}
+
+async function verifyAdminKey(key) {
+  try {
+    const res = await fetch("/api/admin-check", {
+      method: "POST",
+      headers: { "x-admin-key": key },
+    });
+    return res.ok;
+  } catch (e) { return false; }
+}
+
+async function savePlayerStat(team, id, entry, adminKey) {
   try {
     const res = await fetch("/api/stats", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-admin-key": adminKey || "" },
       body: JSON.stringify({ team, id, entry }),
     });
     const json = await res.json();
@@ -92,9 +161,9 @@ async function savePlayerStat(team, id, entry) {
   } catch (e) { return { ok: false, error: (e && e.message) ? e.message : String(e) }; }
 }
 
-async function runWeek1Seed() {
+async function runWeek1Seed(adminKey) {
   try {
-    const res = await fetch("/api/seed", { method: "POST" });
+    const res = await fetch("/api/seed", { method: "POST", headers: { "x-admin-key": adminKey || "" } });
     const json = await res.json();
     if (!res.ok) return { added: 0, updated: 0, unchanged: 0, error: json.error || `HTTP ${res.status}` };
     return { ...json, error: null };
@@ -144,13 +213,13 @@ function Home({ onSelectTeam, onOpenLeaderboards }) {
   return (
     <div style={{ maxWidth: 1180, margin: "0 auto", padding: "0 24px 64px" }}>
       <header style={{ padding: "48px 0 28px", borderBottom: "2px solid var(--ink)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
           <div className="sg-mono" style={{ fontSize: 12, letterSpacing: "0.12em", color: "var(--turf-light)", marginBottom: 6 }}>
             2026 TFL LEAGUE · LOMBARDI &amp; LANDRY CONFERENCES
           </div>
           <button className="sg-btn gold" onClick={onOpenLeaderboards}>Leaderboards</button>
         </div>
-        <h1 className="sg-display" style={{ fontSize: 64, lineHeight: 0.95, margin: 0, color: "var(--ink)" }}>
+        <h1 className="sg-display" style={{ fontSize: "clamp(34px, 9vw, 64px)", lineHeight: 0.95, margin: 0, color: "var(--ink)" }}>
           TFL LEAGUE
         </h1>
         <p style={{ maxWidth: 580, marginTop: 14, fontSize: 15, color: "var(--turf)" }}>
@@ -186,7 +255,7 @@ function Home({ onSelectTeam, onOpenLeaderboards }) {
                   onMouseEnter={e => e.currentTarget.style.background = "var(--parchment)"}
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
-                  <span><strong>{p.name}</strong> <span style={{ color: "var(--turf)" }}>· {p.position}</span></span>
+                  <span><strong>{p.name}</strong> <span style={{ color: "var(--turf)" }}>· {abbrevPosition(p.position)}</span></span>
                   <span className="sg-mono" style={{ color: "var(--turf-light)" }}>{p.team}</span>
                 </div>
               ))}
@@ -198,7 +267,7 @@ function Home({ onSelectTeam, onOpenLeaderboards }) {
       {CONF_ORDER.map(conf => (
         <section key={conf} style={{ marginTop: 40 }}>
           <h2 className="sg-display" style={{ fontSize: 30, margin: "0 0 14px", color: "var(--turf)" }}>{conf} Conference</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 22 }}>
+          <div className="sg-grid-2col" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 22 }}>
             {DIV_ORDER.map(div => (
               <div key={div}>
                 <div className="sg-mono" style={{ fontSize: 11, letterSpacing: "0.1em", color: "var(--turf-light)", marginBottom: 8 }}>
@@ -314,10 +383,11 @@ function PlayerRow({ player, entry, onSave, highlighted, pffRank }) {
   return (
     <div style={{ borderBottom: "1px solid var(--line)" }}>
       <div
-        onClick={() => setOpen(o => !o)}
+        onClick={onSave ? () => setOpen(o => !o) : undefined}
+        className="sg-player-row-grid"
         style={{
           display: "grid", gridTemplateColumns: "1.3fr 1.1fr 1.6fr 0.5fr 0.5fr", gap: 10,
-          padding: "9px 4px", cursor: "pointer", alignItems: "center",
+          padding: "9px 4px", cursor: onSave ? "pointer" : "default", alignItems: "center",
           background: highlighted ? "rgba(201,154,60,0.18)" : "transparent",
           fontSize: 13.5,
         }}
@@ -325,10 +395,10 @@ function PlayerRow({ player, entry, onSave, highlighted, pffRank }) {
         <span style={{ fontWeight: 600 }}>
           {player.name}
           <span className="sg-mono" style={{ color: "var(--turf-light)", fontSize: 11, marginLeft: 6 }}>
-            {player.nflTeam} '25
+            {player.nflTeam}
           </span>
         </span>
-        <span style={{ color: "var(--turf)" }}>{player.position}</span>
+        <span style={{ color: "var(--turf)" }}>{abbrevPosition(player.position)}</span>
         <span className="sg-mono" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {entry?.statLine || <span style={{ color: "var(--line)" }}>no 2026 stats logged yet</span>}
         </span>
@@ -339,7 +409,7 @@ function PlayerRow({ player, entry, onSave, highlighted, pffRank }) {
           {pffRank ? `#${pffRank}` : "—"}
         </span>
       </div>
-      {open && (
+      {open && onSave && (
         <div style={{ padding: "6px 4px 16px" }}>
           <div className="sg-mono" style={{ fontSize: 11, color: "var(--turf-light)", marginBottom: 8 }}>
             2025 season (reference only): {player.stat2025 ? player.stat2025 : (player.keyStat || "no logged stats")}
@@ -505,7 +575,7 @@ const SPECIAL_TEAMS_CATEGORIES = [
    round-tripping to the browser 24 times). This just calls it.
 --------------------------------------------------------------- */
 
-function Leaderboards({ onBack, onSelectTeam }) {
+function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
   const [allStats, setAllStats] = useState(null);
   const [seeding, setSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState(null);
@@ -527,7 +597,7 @@ function Leaderboards({ onBack, onSelectTeam }) {
     setSeeding(true);
     setLoadError(null);
     try {
-      const result = await runWeek1Seed();
+      const result = await runWeek1Seed(adminKey);
       if (result.error) {
         setLoadError(result.error);
       } else {
@@ -547,6 +617,12 @@ function Leaderboards({ onBack, onSelectTeam }) {
     for (const cat of [...OFFENSE_CATEGORIES, ...DEFENSE_CATEGORIES, ...SPECIAL_TEAMS_CATEGORIES]) {
       const rows = [];
       for (const p of PLAYERS) {
+        // "int" means two different things depending on who's wearing it: a
+        // QB's thrown interceptions (bad) vs. a defender's caught interceptions
+        // (good) — both stored under the same field. The Interceptions leaders
+        // category is specifically about defensive playmaking, so quarterbacks
+        // don't belong in it even though they technically have an "int" value.
+        if (cat.key === "int" && p.position.split(",")[0].trim() === "QuarterBack") continue;
         const entry = allStats[p.id];
         const val = entry ? Number(entry[cat.key]) : NaN;
         if (!isNaN(val) && val > 0) rows.push({ player: p, value: val });
@@ -584,21 +660,23 @@ function Leaderboards({ onBack, onSelectTeam }) {
         <button className="sg-btn" onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 18 }}>
           <IconBack /> All teams
         </button>
-        <h1 className="sg-display" style={{ fontSize: 48, margin: 0, borderBottom: "4px solid var(--gold)", paddingBottom: 14 }}>
+        <h1 className="sg-display" style={{ fontSize: "clamp(28px, 8vw, 48px)", margin: 0, borderBottom: "4px solid var(--gold)", paddingBottom: 14 }}>
           2026 LEADERBOARDS
         </h1>
         <p style={{ fontSize: 13.5, color: "var(--turf)", marginTop: 10, maxWidth: 640 }}>
           Ranked from the 2026 stat lines and PFF grades league members have logged so far. Numbers only
           show up here once someone enters them on a player's row.
         </p>
-        <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <button className="sg-btn gold" onClick={handleLoadWeek1} disabled={seeding}>
-            {seeding ? "Loading…" : "Load real Week 1 2026 stats"}
-          </button>
-          <span className="sg-mono" style={{ fontSize: 11.5, color: "var(--turf-light)" }}>
-            fills in stat lines for players who actually posted real Week 1 numbers — never overwrites anything already entered
-          </span>
-        </div>
+        {isAdmin && (
+          <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <button className="sg-btn gold" onClick={handleLoadWeek1} disabled={seeding}>
+              {seeding ? "Loading…" : "Load real 2026 season stats"}
+            </button>
+            <span className="sg-mono" style={{ fontSize: 11.5, color: "var(--turf-light)" }}>
+              fills in season-to-date stat lines from NFL.com for players who've actually played — updates existing entries to the latest totals
+            </span>
+          </div>
+        )}
         {seedResult && (
           <div className="sg-mono" style={{ fontSize: 12, color: "var(--brick)", marginTop: 8 }}>
             Added stats for {seedResult.added} new player{seedResult.added === 1 ? "" : "s"}, updated {seedResult.updated} existing
@@ -626,7 +704,7 @@ function Leaderboards({ onBack, onSelectTeam }) {
           <h2 className="sg-display" style={{ fontSize: 28, margin: "0 0 12px", color: "var(--turf)", borderBottom: "2px solid var(--ink)", paddingBottom: 10 }}>
             Offense
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, marginBottom: 40 }}>
+          <div className="sg-grid-2col" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, marginBottom: 40 }}>
             {OFFENSE_CATEGORIES.map(cat => (
               <div key={cat.key}>
                 <h2 className="sg-display" style={{ fontSize: 22, margin: "0 0 8px", color: "var(--turf)" }}>{cat.label}</h2>
@@ -662,7 +740,7 @@ function Leaderboards({ onBack, onSelectTeam }) {
           <h2 className="sg-display" style={{ fontSize: 28, margin: "0 0 12px", color: "var(--turf)", borderBottom: "2px solid var(--ink)", paddingBottom: 10 }}>
             Defense
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, marginBottom: 40 }}>
+          <div className="sg-grid-2col" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, marginBottom: 40 }}>
             {DEFENSE_CATEGORIES.map(cat => (
               <div key={cat.key}>
                 <h2 className="sg-display" style={{ fontSize: 22, margin: "0 0 8px", color: "var(--turf)" }}>{cat.label}</h2>
@@ -698,7 +776,7 @@ function Leaderboards({ onBack, onSelectTeam }) {
           <h2 className="sg-display" style={{ fontSize: 28, margin: "0 0 12px", color: "var(--turf)", borderBottom: "2px solid var(--ink)", paddingBottom: 10 }}>
             Special Teams
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, marginBottom: 40 }}>
+          <div className="sg-grid-2col" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, marginBottom: 40 }}>
             {SPECIAL_TEAMS_CATEGORIES.map(cat => (
               <div key={cat.key}>
                 <h2 className="sg-display" style={{ fontSize: 22, margin: "0 0 8px", color: "var(--turf)" }}>{cat.label}</h2>
@@ -737,7 +815,7 @@ function Leaderboards({ onBack, onSelectTeam }) {
           {pffByPosition.length === 0 ? (
             <div className="sg-mono" style={{ fontSize: 11.5, color: "var(--line)" }}>no PFF grades logged yet</div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "4px 24px" }}>
+            <div className="sg-grid-3col" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "4px 24px" }}>
               {pffByPosition.map(row => (
                 <div
                   key={row.position}
@@ -750,7 +828,7 @@ function Leaderboards({ onBack, onSelectTeam }) {
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
                   <span>
-                    <span className="sg-mono" style={{ fontSize: 10.5, color: "var(--turf-light)" }}>{row.position.toUpperCase()}</span>
+                    <span className="sg-mono" style={{ fontSize: 10.5, color: "var(--turf-light)" }}>{abbrevPosition(row.position).toUpperCase()}</span>
                     <br />
                     {row.player.name} <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.player.team}</span>
                   </span>
@@ -768,7 +846,7 @@ function Leaderboards({ onBack, onSelectTeam }) {
 /* ---------------------------------------------------------------
    TEAM VIEW
 --------------------------------------------------------------- */
-function TeamPage({ team, onBack, highlightId }) {
+function TeamPage({ team, onBack, highlightId, isAdmin, adminKey }) {
   const meta = TEAMS[team];
   const roster = useMemo(() => PLAYERS.filter(p => p.team === team), [team]);
   const [fullStats, setFullStats] = useState({}); // all players, all teams — one combined store
@@ -815,8 +893,8 @@ function TeamPage({ team, onBack, highlightId }) {
 
   const handleSaveOne = useCallback(async (id, entry) => {
     setFullStats(prev => ({ ...prev, [id]: entry }));
-    await savePlayerStat(team, id, entry);
-  }, [team]);
+    await savePlayerStat(team, id, entry, adminKey);
+  }, [team, adminKey]);
 
   const handleBulkSave = useCallback(async (entries) => {
     if (entries.length === 0) return;
@@ -828,9 +906,9 @@ function TeamPage({ team, onBack, highlightId }) {
     // Each player gets its own request — small payloads, no risk of one big
     // write clobbering a teammate's concurrent edit.
     for (const e of entries) {
-      await savePlayerStat(team, e.id, { statLine: e.statLine, pff: e.pff, updatedAt: e.updatedAt });
+      await savePlayerStat(team, e.id, { statLine: e.statLine, pff: e.pff, updatedAt: e.updatedAt }, adminKey);
     }
-  }, [team]);
+  }, [team, adminKey]);
 
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 24px 80px" }}>
@@ -838,12 +916,12 @@ function TeamPage({ team, onBack, highlightId }) {
         <button className="sg-btn" onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 18 }}>
           <IconBack /> All teams
         </button>
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", borderBottom: `4px solid ${meta.color}`, paddingBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", borderBottom: `4px solid ${meta.color}`, paddingBottom: 14, flexWrap: "wrap", gap: 8 }}>
           <div>
             <div className="sg-mono" style={{ fontSize: 12, color: "var(--turf-light)", letterSpacing: "0.1em" }}>
               {meta.conf.toUpperCase()} {meta.div.toUpperCase()}
             </div>
-            <h1 className="sg-display" style={{ fontSize: 48, margin: 0 }}>{team}</h1>
+            <h1 className="sg-display" style={{ fontSize: "clamp(28px, 8vw, 48px)", margin: 0 }}>{team}</h1>
           </div>
           <div className="sg-mono" style={{ fontSize: 12, color: "var(--turf)", textAlign: "right" }}>
             {roster.length} players
@@ -851,7 +929,7 @@ function TeamPage({ team, onBack, highlightId }) {
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
         {["Offense", "Defense", "Special Teams"].map(g => (
           <button
             key={g}
@@ -863,7 +941,7 @@ function TeamPage({ team, onBack, highlightId }) {
         ))}
       </div>
 
-      <div style={{
+      <div className="sg-player-row-header" style={{
         display: "grid", gridTemplateColumns: "1.3fr 1.1fr 1.6fr 0.5fr 0.5fr", gap: 10,
         padding: "6px 4px", borderBottom: "2px solid var(--ink)", marginBottom: 2,
       }}>
@@ -880,14 +958,14 @@ function TeamPage({ team, onBack, highlightId }) {
             key={p.id}
             player={p}
             entry={stats[p.id]}
-            onSave={handleSaveOne}
+            onSave={isAdmin ? handleSaveOne : null}
             highlighted={p.id === highlightId}
             pffRank={pffRanks[p.id]}
           />
         ))
       )}
 
-      <ImportPanel team={team} roster={roster} onBulkSave={handleBulkSave} />
+      {isAdmin && <ImportPanel team={team} roster={roster} onBulkSave={handleBulkSave} />}
     </div>
   );
 }
@@ -897,6 +975,36 @@ function TeamPage({ team, onBack, highlightId }) {
 --------------------------------------------------------------- */
 export default function App() {
   const [view, setView] = useState({ page: "home" });
+  const [adminKey, setAdminKey] = useState(() => getStoredAdminKey());
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (adminKey) {
+      verifyAdminKey(adminKey).then(ok => { if (!cancelled) setIsAdmin(ok); });
+    } else {
+      setIsAdmin(false);
+    }
+    return () => { cancelled = true; };
+  }, [adminKey]);
+
+  const handleAdminLogin = async () => {
+    const entered = window.prompt("Admin password:");
+    if (!entered) return;
+    const ok = await verifyAdminKey(entered);
+    if (ok) {
+      try { localStorage.setItem(ADMIN_KEY_STORAGE, entered); } catch (e) {}
+      setAdminKey(entered);
+    } else {
+      window.alert("That password isn't correct.");
+    }
+  };
+
+  const handleAdminLogout = () => {
+    try { localStorage.removeItem(ADMIN_KEY_STORAGE); } catch (e) {}
+    setAdminKey("");
+    setIsAdmin(false);
+  };
 
   const goTeam = (team, highlightId) => setView({ page: "team", team, highlightId });
   const goHome = () => setView({ page: "home" });
@@ -906,13 +1014,24 @@ export default function App() {
     <div className="sg-root" style={{ minHeight: "100vh" }}>
       {view.page === "home" && <Home onSelectTeam={goTeam} onOpenLeaderboards={goLeaderboards} />}
       {view.page === "team" && (
-        <TeamPage team={view.team} onBack={goHome} highlightId={view.highlightId} />
+        <TeamPage team={view.team} onBack={goHome} highlightId={view.highlightId} isAdmin={isAdmin} adminKey={adminKey} />
       )}
       {view.page === "leaderboards" && (
-        <Leaderboards onBack={goHome} onSelectTeam={goTeam} />
+        <Leaderboards onBack={goHome} onSelectTeam={goTeam} isAdmin={isAdmin} adminKey={adminKey} />
       )}
       <footer style={{ textAlign: "center", padding: "20px 0 40px", color: "var(--turf-light)", fontSize: 11.5 }} className="sg-mono">
         2026 TFL LEAGUE · rosters from the Strat-O-Matic league reports · 2026 NFL season stats &amp; PFF grades entered by league members
+        <div style={{ marginTop: 8 }}>
+          {isAdmin ? (
+            <>
+              <span style={{ color: "var(--turf)" }}>admin mode</span>
+              {" · "}
+              <button onClick={handleAdminLogout} className="sg-mono" style={{ background: "none", border: "none", color: "var(--turf-light)", textDecoration: "underline", cursor: "pointer", fontSize: 11.5, padding: 0 }}>log out</button>
+            </>
+          ) : (
+            <button onClick={handleAdminLogin} className="sg-mono" style={{ background: "none", border: "none", color: "var(--turf-light)", textDecoration: "underline", cursor: "pointer", fontSize: 11.5, padding: 0 }}>admin</button>
+          )}
+        </div>
       </footer>
     </div>
   );
