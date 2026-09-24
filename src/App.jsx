@@ -106,6 +106,58 @@ function abbrevPosition(positionCombo) {
     .join(", ");
 }
 
+// Consolidated groups for the "Highest PFF Grade by Position" leaderboard —
+// one bucket per position, in this display order. A few positions that get
+// their own row elsewhere (Nose Tackle, 1st Defensive Back) fold into the
+// nearest bucket here (DT, S) so the list stays to exactly these 18 rows.
+const PFF_LEADER_ORDER = ["QB", "FB", "RB", "WR", "TE", "T", "G", "C", "DE", "DT", "OLB", "ILB", "CB", "S", "K", "P", "KR", "PR"];
+const PFF_LEADER_GROUP = {
+  "QuarterBack": "QB",
+  "FullBack": "FB",
+  "Blocking Back": "FB",
+  "HalfBack": "RB",
+  "Split End": "WR",
+  "Flanker": "WR",
+  "Tight End": "TE",
+  "Left Tackle": "T",
+  "Right Tackle": "T",
+  "Off Tackle": "T",
+  "Left Guard": "G",
+  "Right Guard": "G",
+  "Guard": "G",
+  "Center": "C",
+  "Left End": "DE",
+  "Right End": "DE",
+  "Def End": "DE",
+  "Def Tackle": "DT",
+  "Nose Tackle": "DT",
+  "Left O LB": "OLB",
+  "Right O LB": "OLB",
+  "O LB": "OLB",
+  "Left I LB": "ILB",
+  "Right I LB": "ILB",
+  "I LB": "ILB",
+  "Left LB": "ILB",
+  "Right LB": "ILB",
+  "Middle LB": "ILB",
+  "LB": "ILB",
+  "Left CB": "CB",
+  "Right CB": "CB",
+  "CB": "CB",
+  "1st Defensive Back": "S",
+  "Free Safety": "S",
+  "Strong Safety": "S",
+  "Safety": "S",
+  "Place Kicker": "K",
+  "Punter": "P",
+  "KO Returner": "KR",
+  "Punt Returner": "PR",
+};
+function pffLeaderGroup(positionCombo) {
+  const first = positionCombo.split(",")[0].trim();
+  return PFF_LEADER_GROUP[first] || null;
+}
+
 function sortRoster(players, group) {
   const order = POSITION_ORDER[group] || [];
   return [...players].sort((a, b) => {
@@ -635,20 +687,18 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
 
   const pffByPosition = useMemo(() => {
     if (!allStats) return null;
-    const order = [...POSITION_ORDER.Offense, ...POSITION_ORDER.Defense, ...POSITION_ORDER["Special Teams"]];
     const best = {};
     for (const p of PLAYERS) {
       const entry = allStats[p.id];
       const grade = entry ? Number(entry.pff) : NaN;
       if (isNaN(grade)) continue;
-      const pos = p.position.split(",")[0].trim();
-      if (!best[pos] || grade > best[pos].value) best[pos] = { player: p, value: grade };
+      const group = pffLeaderGroup(p.position);
+      if (!group) continue;
+      if (!best[group] || grade > best[group].value) best[group] = { player: p, value: grade };
     }
-    const rows = Object.entries(best).map(([pos, v]) => ({ position: pos, ...v }));
-    rows.sort((a, b) => {
-      const ia = order.indexOf(a.position); const ib = order.indexOf(b.position);
-      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
-    });
+    const rows = PFF_LEADER_ORDER
+      .filter(pos => best[pos])
+      .map(pos => ({ position: pos, ...best[pos] }));
     return rows;
   }, [allStats]);
 
@@ -828,7 +878,7 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
                   <span>
-                    <span className="sg-mono" style={{ fontSize: 10.5, color: "var(--turf-light)" }}>{abbrevPosition(row.position).toUpperCase()}</span>
+                    <span className="sg-mono" style={{ fontSize: 10.5, color: "var(--turf-light)" }}>{row.position}</span>
                     <br />
                     {row.player.name} <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.player.team}</span>
                   </span>
