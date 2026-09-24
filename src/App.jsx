@@ -617,6 +617,12 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
     for (const cat of [...OFFENSE_CATEGORIES, ...DEFENSE_CATEGORIES, ...SPECIAL_TEAMS_CATEGORIES]) {
       const rows = [];
       for (const p of PLAYERS) {
+        // "int" means two different things depending on who's wearing it: a
+        // QB's thrown interceptions (bad) vs. a defender's caught interceptions
+        // (good) — both stored under the same field. The Interceptions leaders
+        // category is specifically about defensive playmaking, so quarterbacks
+        // don't belong in it even though they technically have an "int" value.
+        if (cat.key === "int" && p.position.split(",")[0].trim() === "QuarterBack") continue;
         const entry = allStats[p.id];
         const val = entry ? Number(entry[cat.key]) : NaN;
         if (!isNaN(val) && val > 0) rows.push({ player: p, value: val });
