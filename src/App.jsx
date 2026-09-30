@@ -158,6 +158,16 @@ function pffLeaderGroup(positionCombo) {
   return PFF_LEADER_GROUP[first] || null;
 }
 
+// Plural, human-readable label for each PFF leaderboard bucket — used for the
+// "#1 of 38 Safeties" style count next to each position's top grade.
+const PFF_LEADER_PLURAL = {
+  QB: "quarterbacks", FB: "fullbacks", RB: "running backs", WR: "wide receivers",
+  TE: "tight ends", T: "tackles", G: "guards", C: "centers", DE: "defensive ends",
+  DT: "defensive tackles", OLB: "outside linebackers", ILB: "inside linebackers",
+  CB: "cornerbacks", S: "safeties", K: "kickers", P: "punters",
+  KR: "kick returners", PR: "punt returners",
+};
+
 function sortRoster(players, group) {
   const order = POSITION_ORDER[group] || [];
   return [...players].sort((a, b) => {
@@ -405,7 +415,7 @@ function fieldsForPosition(positionCombo) {
   return fields;
 }
 
-function PlayerRow({ player, entry, onSave, highlighted, pffRank }) {
+function PlayerRow({ player, entry, onSave, highlighted, pffRank, pffTotal }) {
   const [open, setOpen] = useState(false);
   const [statLine, setStatLine] = useState(entry?.statLine || "");
   const [pff, setPff] = useState(entry?.pff || "");
@@ -458,7 +468,7 @@ function PlayerRow({ player, entry, onSave, highlighted, pffRank }) {
           {entry?.pff || "—"}
         </span>
         <span className="sg-mono" style={{ textAlign: "right", color: pffRank ? "var(--turf)" : "var(--line)" }}>
-          {pffRank ? `#${pffRank}` : "—"}
+          {pffRank ? `#${pffRank} of #${pffTotal}` : "—"}
         </span>
       </div>
       {open && onSave && (
@@ -688,17 +698,19 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
   const pffByPosition = useMemo(() => {
     if (!allStats) return null;
     const best = {};
+    const counts = {};
     for (const p of PLAYERS) {
       const entry = allStats[p.id];
       const grade = entry ? Number(entry.pff) : NaN;
       if (isNaN(grade)) continue;
       const group = pffLeaderGroup(p.position);
       if (!group) continue;
+      counts[group] = (counts[group] || 0) + 1;
       if (!best[group] || grade > best[group].value) best[group] = { player: p, value: grade };
     }
     const rows = PFF_LEADER_ORDER
       .filter(pos => best[pos])
-      .map(pos => ({ position: pos, ...best[pos] }));
+      .map(pos => ({ position: pos, count: counts[pos] || 1, ...best[pos] }));
     return rows;
   }, [allStats]);
 
@@ -878,7 +890,9 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
                   <span>
-                    <span className="sg-mono" style={{ fontSize: 10.5, color: "var(--turf-light)" }}>{row.position}</span>
+                    <span className="sg-mono" style={{ fontSize: 10.5, color: "var(--turf-light)" }}>
+                      {row.position} · #1 of #{row.count} {PFF_LEADER_PLURAL[row.position] || row.position.toLowerCase()}
+                    </span>
                     <br />
                     {row.player.name} <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.player.team}</span>
                   </span>
@@ -915,7 +929,7 @@ function TeamPage({ team, onBack, highlightId, isAdmin, adminKey }) {
   // This team's slice, for display only — saves always go through the full object.
   const stats = fullStats;
 
-  // League-wide PFF rank within each player's primary position (same grouping as the Leaderboards page).
+  // League-wide PFF rank (and pool size) within each player's exact position.
   const pffRanks = useMemo(() => {
     const byPosition = {};
     for (const p of PLAYERS) {
@@ -927,11 +941,12 @@ function TeamPage({ team, onBack, highlightId, isAdmin, adminKey }) {
       byPosition[pos].push({ id: p.id, grade });
     }
     const ranks = {};
+    const totals = {};
     for (const pos of Object.keys(byPosition)) {
       const sorted = [...byPosition[pos]].sort((a, b) => b.grade - a.grade);
-      sorted.forEach((row, i) => { ranks[row.id] = i + 1; });
+      sorted.forEach((row, i) => { ranks[row.id] = i + 1; totals[row.id] = sorted.length; });
     }
-    return ranks;
+    return { ranks, totals };
   }, [fullStats]);
 
   const grouped = useMemo(() => {
@@ -1010,7 +1025,8 @@ function TeamPage({ team, onBack, highlightId, isAdmin, adminKey }) {
             entry={stats[p.id]}
             onSave={isAdmin ? handleSaveOne : null}
             highlighted={p.id === highlightId}
-            pffRank={pffRanks[p.id]}
+            pffRank={pffRanks.ranks[p.id]}
+            pffTotal={pffRanks.totals[p.id]}
           />
         ))
       )}
