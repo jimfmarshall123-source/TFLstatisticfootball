@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { PLAYERS_RAW, TEAMS_RAW } from "./data.js";
+import { FREE_AGENTS } from "./freeAgents.js";
 
 /* ---------------------------------------------------------------
    DATA — parsed from the 2026 TFL League standings + roster reports
@@ -168,6 +169,16 @@ const PFF_LEADER_PLURAL = {
   KR: "kick returners", PR: "punt returners",
 };
 
+// Free Agents page: PFF's own raw position codes, in roster-build order, with
+// full display labels.
+const FA_POSITION_ORDER = ["QB", "FB", "HB", "WR", "TE", "T", "G", "C", "DI", "ED", "LB", "CB", "S", "K", "P"];
+const FA_POSITION_LABEL = {
+  QB: "Quarterback", FB: "Fullback", HB: "Running Back", WR: "Wide Receiver",
+  TE: "Tight End", T: "Tackle", G: "Guard", C: "Center", DI: "Interior Defender",
+  ED: "Edge Defender", LB: "Linebacker", CB: "Cornerback", S: "Safety",
+  K: "Kicker", P: "Punter",
+};
+
 function sortRoster(players, group) {
   const order = POSITION_ORDER[group] || [];
   return [...players].sort((a, b) => {
@@ -249,7 +260,7 @@ const IconSearch = () => (
 /* ---------------------------------------------------------------
    HOME VIEW
 --------------------------------------------------------------- */
-function Home({ onSelectTeam, onOpenLeaderboards }) {
+function Home({ onSelectTeam, onOpenLeaderboards, onOpenFreeAgents }) {
   const [query, setQuery] = useState("");
   const results = useMemo(() => {
     if (query.trim().length < 2) return [];
@@ -279,7 +290,10 @@ function Home({ onSelectTeam, onOpenLeaderboards }) {
           <div className="sg-mono" style={{ fontSize: 12, letterSpacing: "0.12em", color: "var(--turf-light)", marginBottom: 6 }}>
             2026 TFL LEAGUE · LOMBARDI &amp; LANDRY CONFERENCES
           </div>
-          <button className="sg-btn gold" onClick={onOpenLeaderboards}>Leaderboards</button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="sg-btn gold" onClick={onOpenLeaderboards}>Leaderboards</button>
+            <button className="sg-btn gold" onClick={onOpenFreeAgents}>Free Agents</button>
+          </div>
         </div>
         <h1 className="sg-display" style={{ fontSize: "clamp(34px, 9vw, 64px)", lineHeight: 0.95, margin: 0, color: "var(--ink)" }}>
           TFL LEAGUE
@@ -911,6 +925,70 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
 }
 
 /* ---------------------------------------------------------------
+   FREE AGENTS
+--------------------------------------------------------------- */
+function FreeAgents({ onBack, onSelectTeam }) {
+  const [generated, setGenerated] = useState(false);
+
+  const topByPosition = useMemo(() => {
+    const best = {};
+    const counts = {};
+    for (const fa of FREE_AGENTS) {
+      counts[fa.pos] = (counts[fa.pos] || 0) + 1;
+      if (!best[fa.pos] || fa.pff > best[fa.pos].pff) best[fa.pos] = fa;
+    }
+    return FA_POSITION_ORDER
+      .filter(pos => best[pos])
+      .map(pos => ({ pos, count: counts[pos], ...best[pos] }));
+  }, []);
+
+  return (
+    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
+      <div style={{ padding: "28px 0 18px" }}>
+        <button className="sg-btn" onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 18 }}>
+          <IconBack /> All teams
+        </button>
+        <h1 className="sg-display" style={{ fontSize: "clamp(28px, 8vw, 48px)", margin: 0, borderBottom: "4px solid var(--gold)", paddingBottom: 14 }}>
+          FREE AGENTS
+        </h1>
+        <p style={{ fontSize: 13.5, color: "var(--turf)", marginTop: 10, maxWidth: 640 }}>
+          The highest-graded real NFL player at each position who isn't on any of the 24 TFL club
+          rosters, built from the PFF advanced-stats files. Click the button to generate the list.
+        </p>
+        <div style={{ marginTop: 14 }}>
+          <button className="sg-btn gold" onClick={() => setGenerated(true)}>
+            Generate top available players
+          </button>
+        </div>
+      </div>
+
+      {generated && (
+        <div className="sg-grid-2col" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "4px 32px" }}>
+          {topByPosition.map(row => (
+            <div
+              key={row.pos}
+              style={{
+                display: "flex", justifyContent: "space-between", gap: 8, padding: "10px 4px",
+                borderBottom: "1px solid var(--line)", fontSize: 13,
+              }}
+            >
+              <span>
+                <span className="sg-mono" style={{ fontSize: 10.5, color: "var(--turf-light)" }}>
+                  {row.pos} · {FA_POSITION_LABEL[row.pos] || row.pos} · best of #{row.count} available
+                </span>
+                <br />
+                {row.name} <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.nflTeam}</span>
+              </span>
+              <span className="sg-mono" style={{ fontWeight: 600, color: "var(--brick)", alignSelf: "center" }}>{row.pff}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
    TEAM VIEW
 --------------------------------------------------------------- */
 function TeamPage({ team, onBack, highlightId, isAdmin, adminKey }) {
@@ -1082,15 +1160,19 @@ export default function App() {
   const goTeam = (team, highlightId) => setView({ page: "team", team, highlightId });
   const goHome = () => setView({ page: "home" });
   const goLeaderboards = () => setView({ page: "leaderboards" });
+  const goFreeAgents = () => setView({ page: "freeAgents" });
 
   return (
     <div className="sg-root" style={{ minHeight: "100vh" }}>
-      {view.page === "home" && <Home onSelectTeam={goTeam} onOpenLeaderboards={goLeaderboards} />}
+      {view.page === "home" && <Home onSelectTeam={goTeam} onOpenLeaderboards={goLeaderboards} onOpenFreeAgents={goFreeAgents} />}
       {view.page === "team" && (
         <TeamPage team={view.team} onBack={goHome} highlightId={view.highlightId} isAdmin={isAdmin} adminKey={adminKey} />
       )}
       {view.page === "leaderboards" && (
         <Leaderboards onBack={goHome} onSelectTeam={goTeam} isAdmin={isAdmin} adminKey={adminKey} />
+      )}
+      {view.page === "freeAgents" && (
+        <FreeAgents onBack={goHome} onSelectTeam={goTeam} />
       )}
       <footer style={{ textAlign: "center", padding: "20px 0 40px", color: "var(--turf-light)", fontSize: 11.5 }} className="sg-mono">
         2026 TFL LEAGUE · rosters from the Strat-O-Matic league reports · 2026 NFL season stats &amp; PFF grades entered by league members
