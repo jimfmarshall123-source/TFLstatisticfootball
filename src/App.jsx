@@ -415,7 +415,7 @@ function fieldsForPosition(positionCombo) {
   return fields;
 }
 
-function PlayerRow({ player, entry, onSave, highlighted, pffRank, pffTotal }) {
+function PlayerRow({ player, entry, onSave, highlighted, pffRank, pffTotal, pffPos }) {
   const [open, setOpen] = useState(false);
   const [statLine, setStatLine] = useState(entry?.statLine || "");
   const [pff, setPff] = useState(entry?.pff || "");
@@ -448,7 +448,7 @@ function PlayerRow({ player, entry, onSave, highlighted, pffRank, pffTotal }) {
         onClick={onSave ? () => setOpen(o => !o) : undefined}
         className="sg-player-row-grid"
         style={{
-          display: "grid", gridTemplateColumns: "1.3fr 1.1fr 1.6fr 0.5fr 0.5fr", gap: 10,
+          display: "grid", gridTemplateColumns: "1.3fr 1.1fr 1.6fr 0.4fr 0.5fr 0.7fr", gap: 10,
           padding: "9px 4px", cursor: onSave ? "pointer" : "default", alignItems: "center",
           background: highlighted ? "rgba(201,154,60,0.18)" : "transparent",
           fontSize: 13.5,
@@ -463,6 +463,9 @@ function PlayerRow({ player, entry, onSave, highlighted, pffRank, pffTotal }) {
         <span style={{ color: "var(--turf)" }}>{abbrevPosition(player.position)}</span>
         <span className="sg-mono" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {entry?.statLine || <span style={{ color: "var(--line)" }}>no 2026 stats logged yet</span>}
+        </span>
+        <span className="sg-mono" style={{ color: pffPos ? "var(--turf)" : "var(--line)" }}>
+          {pffPos || "—"}
         </span>
         <span className="sg-mono" style={{ textAlign: "right", fontWeight: 600, color: entry?.pff ? "var(--brick)" : "var(--line)" }}>
           {entry?.pff || "—"}
@@ -929,14 +932,17 @@ function TeamPage({ team, onBack, highlightId, isAdmin, adminKey }) {
   // This team's slice, for display only — saves always go through the full object.
   const stats = fullStats;
 
-  // League-wide PFF rank (and pool size) within each player's exact position.
+  // League-wide PFF rank (and pool size) within each player's PFF position
+  // (the position code from the PFF stat files — e.g. "DI", "ED", "S" — not
+  // this site's own Strat-O-Matic position names).
   const pffRanks = useMemo(() => {
     const byPosition = {};
     for (const p of PLAYERS) {
       const entry = fullStats[p.id];
       const grade = entry ? Number(entry.pff) : NaN;
       if (isNaN(grade)) continue;
-      const pos = p.position.split(",")[0].trim();
+      const pos = entry.pffPos;
+      if (!pos) continue;
       byPosition[pos] = byPosition[pos] || [];
       byPosition[pos].push({ id: p.id, grade });
     }
@@ -1007,11 +1013,11 @@ function TeamPage({ team, onBack, highlightId, isAdmin, adminKey }) {
       </div>
 
       <div className="sg-player-row-header" style={{
-        display: "grid", gridTemplateColumns: "1.3fr 1.1fr 1.6fr 0.5fr 0.5fr", gap: 10,
+        display: "grid", gridTemplateColumns: "1.3fr 1.1fr 1.6fr 0.4fr 0.5fr 0.7fr", gap: 10,
         padding: "6px 4px", borderBottom: "2px solid var(--ink)", marginBottom: 2,
       }}>
-        {["NAME", "POSITION", "2026 NFL STAT LINE", "2026 PFF", "RANK"].map((h, i) => (
-          <span key={h} className="sg-mono" style={{ fontSize: 10, color: "var(--turf-light)", textAlign: i >= 3 ? "right" : "left" }}>{h}</span>
+        {["NAME", "POSITION", "2026 NFL STAT LINE", "POS", "2026 PFF", "RANK"].map((h, i) => (
+          <span key={h} className="sg-mono" style={{ fontSize: 10, color: "var(--turf-light)", textAlign: i >= 4 ? "right" : "left" }}>{h}</span>
         ))}
       </div>
 
@@ -1027,6 +1033,7 @@ function TeamPage({ team, onBack, highlightId, isAdmin, adminKey }) {
             highlighted={p.id === highlightId}
             pffRank={pffRanks.ranks[p.id]}
             pffTotal={pffRanks.totals[p.id]}
+            pffPos={stats[p.id]?.pffPos}
           />
         ))
       )}
