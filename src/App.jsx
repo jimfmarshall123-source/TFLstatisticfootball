@@ -942,6 +942,29 @@ function FreeAgents({ onBack, onSelectTeam }) {
       .map(pos => ({ pos, count: counts[pos], ...best[pos] }));
   }, []);
 
+  // Top 10 "leaders" lists, same shape as the Leaderboards categoryLeaders,
+  // but built from real 2026 Pro-Football-Reference box-score stats instead
+  // of the site's own logged stat lines, and restricted to free agents.
+  const statLeaders = useMemo(() => {
+    const categories = [
+      { key: "passYds", label: "Passing Yards" },
+      { key: "rushYds", label: "Rushing Yards" },
+      { key: "recYds", label: "Receiving Yards" },
+      { key: "tackles", label: "Tackles" },
+      { key: "sacks", label: "Sacks" },
+      { key: "int", label: "Interceptions" },
+    ];
+    const result = {};
+    for (const cat of categories) {
+      const rows = FREE_AGENTS
+        .filter(fa => typeof fa[cat.key] === "number" && fa[cat.key] > 0)
+        .sort((a, b) => b[cat.key] - a[cat.key])
+        .slice(0, 10);
+      result[cat.key] = { label: cat.label, rows };
+    }
+    return result;
+  }, []);
+
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
       <div style={{ padding: "28px 0 18px" }}>
@@ -952,37 +975,87 @@ function FreeAgents({ onBack, onSelectTeam }) {
           FREE AGENTS
         </h1>
         <p style={{ fontSize: 13.5, color: "var(--turf)", marginTop: 10, maxWidth: 640 }}>
-          The highest-graded real NFL player at each position who isn't on any of the 24 TFL club
-          rosters, built from the PFF advanced-stats files. Click the button to generate the list.
+          Real NFL players who aren't on any of the 24 TFL club rosters, with their 2026
+          season-to-date stat line from Pro Football Reference and PFF grade. Click the button to
+          generate the list.
         </p>
-        <div style={{ marginTop: 14 }}>
-          <button className="sg-btn gold" onClick={() => setGenerated(true)}>
-            Generate top available players
-          </button>
-        </div>
+        {!generated && (
+          <div style={{ marginTop: 14 }}>
+            <button className="sg-btn gold" onClick={() => setGenerated(true)}>
+              Generate top available players
+            </button>
+          </div>
+        )}
       </div>
 
       {generated && (
-        <div className="sg-grid-2col" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "4px 32px" }}>
-          {topByPosition.map(row => (
-            <div
-              key={row.pos}
-              style={{
-                display: "flex", justifyContent: "space-between", gap: 8, padding: "10px 4px",
-                borderBottom: "1px solid var(--line)", fontSize: 13,
-              }}
-            >
-              <span>
-                <span className="sg-mono" style={{ fontSize: 10.5, color: "var(--turf-light)" }}>
-                  {row.pos} · {FA_POSITION_LABEL[row.pos] || row.pos} · best of #{row.count} available
+        <>
+          <h2 className="sg-display" style={{ fontSize: 28, margin: "0 0 12px", color: "var(--turf)", borderBottom: "2px solid var(--ink)", paddingBottom: 10 }}>
+            Highest 2026 PFF Grade by Position
+          </h2>
+          <div className="sg-grid-3col" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "4px 24px", marginBottom: 40 }}>
+            {topByPosition.map(row => (
+              <div
+                key={row.pos}
+                style={{
+                  display: "flex", justifyContent: "space-between", gap: 8, padding: "7px 4px",
+                  borderBottom: "1px solid var(--line)", fontSize: 13,
+                }}
+              >
+                <span>
+                  <span className="sg-mono" style={{ fontSize: 10.5, color: "var(--turf-light)" }}>
+                    {row.pos} · #1 of #{row.count} available {FA_POSITION_LABEL[row.pos] || row.pos}
+                  </span>
+                  <br />
+                  {row.name} <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.nflTeam}</span>
+                  {row.statLine && (
+                    <>
+                      <br />
+                      <span className="sg-mono" style={{ fontSize: 10.5, color: "var(--turf)" }}>{row.statLine}</span>
+                    </>
+                  )}
                 </span>
-                <br />
-                {row.name} <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.nflTeam}</span>
-              </span>
-              <span className="sg-mono" style={{ fontWeight: 600, color: "var(--brick)", alignSelf: "center" }}>{row.pff}</span>
-            </div>
-          ))}
-        </div>
+                <span className="sg-mono" style={{ fontWeight: 600, color: "var(--brick)", alignSelf: "center" }}>{row.pff}</span>
+              </div>
+            ))}
+          </div>
+
+          <h2 className="sg-display" style={{ fontSize: 28, margin: "0 0 12px", color: "var(--turf)", borderBottom: "2px solid var(--ink)", paddingBottom: 10 }}>
+            2026 Stat Leaders Among Free Agents
+          </h2>
+          <p style={{ fontSize: 12, color: "var(--turf)", marginTop: -4, marginBottom: 16, maxWidth: 640 }}>
+            From Pro Football Reference's 2026 season-to-date box scores.
+          </p>
+          <div className="sg-grid-2col" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28 }}>
+            {Object.entries(statLeaders).map(([key, cat]) => (
+              <div key={key}>
+                <h2 className="sg-display" style={{ fontSize: 22, margin: "0 0 8px", color: "var(--turf)" }}>{cat.label}</h2>
+                {cat.rows.length === 0 ? (
+                  <div className="sg-mono" style={{ fontSize: 11.5, color: "var(--line)" }}>no free agents with this stat yet</div>
+                ) : (
+                  <div style={{ borderTop: "2px solid var(--ink)" }}>
+                    {cat.rows.map((row, i) => (
+                      <div
+                        key={row.name + i}
+                        style={{
+                          display: "grid", gridTemplateColumns: "24px 1fr auto", alignItems: "center",
+                          gap: 8, padding: "7px 4px", borderBottom: "1px solid var(--line)", fontSize: 13,
+                        }}
+                      >
+                        <span className="sg-mono" style={{ color: "var(--turf-light)" }}>{i + 1}</span>
+                        <span>
+                          {row.name}{" "}
+                          <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.nflTeam} · {row.pos}</span>
+                        </span>
+                        <span className="sg-mono" style={{ fontWeight: 600 }}>{row[key]}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
