@@ -158,6 +158,14 @@ function pffLeaderGroup(positionCombo) {
   const first = positionCombo.split(",")[0].trim();
   return PFF_LEADER_GROUP[first] || null;
 }
+// Return specialists are almost always listed with a primary offense/defense
+// position first and "KO Returner"/"Punt Returner" tacked on afterward (e.g.
+// "Split End,Flanker,KO Returner"), so going by the first position only (as
+// pffLeaderGroup does) picks up almost none of them. This checks the whole
+// compound position string instead, used just for the KR/PR leaderboard rows.
+function hasPositionRole(positionCombo, role) {
+  return positionCombo.split(",").some(p => p.trim() === role);
+}
 
 // Plural, human-readable label for each PFF leaderboard bucket — used for the
 // "#1 of 38 Safeties" style count next to each position's top grade.
@@ -716,14 +724,22 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
     if (!allStats) return null;
     const best = {};
     const counts = {};
+    const bump = (group, p, grade) => {
+      counts[group] = (counts[group] || 0) + 1;
+      if (!best[group] || grade > best[group].value) best[group] = { player: p, value: grade };
+    };
     for (const p of PLAYERS) {
       const entry = allStats[p.id];
       const grade = entry ? Number(entry.pff) : NaN;
       if (isNaN(grade)) continue;
       const group = pffLeaderGroup(p.position);
-      if (!group) continue;
-      counts[group] = (counts[group] || 0) + 1;
-      if (!best[group] || grade > best[group].value) best[group] = { player: p, value: grade };
+      if (group) bump(group, p, grade);
+      // KR/PR are secondary roles tacked onto a primary position for almost
+      // everyone who plays them, so check the whole compound position (not
+      // just pffLeaderGroup's first-listed one) and let a player count in
+      // that bucket too, on top of their primary offense/defense bucket.
+      if (hasPositionRole(p.position, "KO Returner")) bump("KR", p, grade);
+      if (hasPositionRole(p.position, "Punt Returner")) bump("PR", p, grade);
     }
     const rows = PFF_LEADER_ORDER
       .filter(pos => best[pos])
@@ -760,7 +776,8 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
           <div className="sg-mono" style={{ fontSize: 12, color: "var(--brick)", marginTop: 8 }}>
             Added stats for {seedResult.added} new player{seedResult.added === 1 ? "" : "s"}, updated {seedResult.updated} existing
             player{seedResult.updated === 1 ? "" : "s"} with corrected data
-            {seedResult.unchanged > 0 ? ` (${seedResult.unchanged} already matched and were left alone)` : ""}.
+            {seedResult.unchanged > 0 ? ` (${seedResult.unchanged} already matched and were left alone)` : ""}
+            {seedResult.cleared > 0 ? `; removed old ratings and ranks from ${seedResult.cleared} player${seedResult.cleared === 1 ? "" : "s"} not on the latest PFF list` : ""}.
             {seedResult.failedTeams && seedResult.failedTeams.length > 0 && (
               <> Failed to save for: {seedResult.failedTeams.join(", ")} — try clicking the button again.</>
             )}
