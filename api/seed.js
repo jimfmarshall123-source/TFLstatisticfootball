@@ -34,7 +34,12 @@ export default async function handler(req, res) {
       byTeam[team].push([id, stats]);
     }
 
-    let added = 0, updated = 0, unchanged = 0;
+    // Every team gets processed (not just those with seed entries) so stale
+    // PFF ratings can be cleared for players who are no longer on the PFF list.
+    const allTeams = [...new Set(PLAYERS_RAW.map(p => p[0]))];
+    for (const t of allTeams) byTeam[t] = byTeam[t] || [];
+
+    let added = 0, updated = 0, unchanged = 0, cleared = 0;
     for (const [team, entries] of Object.entries(byTeam)) {
       const key = teamKey(team);
       const raw = await redis.get(key);
@@ -59,12 +64,26 @@ export default async function handler(req, res) {
         }
       }
 
+      // The seed file is the source of truth for PFF ratings: anyone whose seed
+      // has no rating loses any saved rating, position tag and rank.
+      for (const id of Object.keys(existing)) {
+        const seed = SEASON_2026_SEEDS[id];
+        const hasPff = seed && seed.pff != null;
+        const cur = existing[id];
+        if (!hasPff && cur && (cur.pff !== undefined || cur.pffPos !== undefined)) {
+          const { pff, pffPos, ...rest } = cur;
+          existing[id] = { ...rest, updatedAt: new Date().toISOString() };
+          cleared++;
+          changedAny = true;
+        }
+      }
+
       if (changedAny) {
         await redis.set(key, JSON.stringify(existing));
       }
     }
 
-    res.status(200).json({ added, updated, unchanged });
+    res.status(200).json({ added, updated, unchanged, cleared });
   } catch (err) {
     res.status(500).json({ error: err && err.message ? err.message : String(err) });
   }
