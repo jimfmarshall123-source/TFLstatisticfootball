@@ -437,6 +437,9 @@ function fieldsForPosition(positionCombo) {
   return fields;
 }
 
+// Players on injured reserve (RS = IR in the PFF files) show their name in red.
+const IR_STYLE = { color: "#c62828" };
+
 function PlayerRow({ player, entry, onSave, highlighted, pffRank, pffTotal, pffPos }) {
   const [open, setOpen] = useState(false);
   const [statLine, setStatLine] = useState(entry?.statLine || "");
@@ -476,7 +479,7 @@ function PlayerRow({ player, entry, onSave, highlighted, pffRank, pffTotal, pffP
           fontSize: 13.5,
         }}
       >
-        <span style={{ fontWeight: 600 }}>
+        <span style={{ fontWeight: 600, ...(entry?.ir ? IR_STYLE : null) }}>
           {player.name}
           <span className="sg-mono" style={{ color: "var(--turf-light)", fontSize: 11, marginLeft: 6 }}>
             {player.nflTeam}
@@ -821,7 +824,7 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
                       >
                         <span className="sg-mono" style={{ color: "var(--turf-light)" }}>{i + 1}</span>
                         <span>
-                          {row.player.name}{" "}
+                          <span style={allStats?.[row.player.id]?.ir ? IR_STYLE : undefined}>{row.player.name}</span>{" "}
                           <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.player.team}</span>
                         </span>
                         <span className="sg-mono" style={{ fontWeight: 600 }}>{row.value}</span>
@@ -857,7 +860,7 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
                       >
                         <span className="sg-mono" style={{ color: "var(--turf-light)" }}>{i + 1}</span>
                         <span>
-                          {row.player.name}{" "}
+                          <span style={allStats?.[row.player.id]?.ir ? IR_STYLE : undefined}>{row.player.name}</span>{" "}
                           <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.player.team}</span>
                         </span>
                         <span className="sg-mono" style={{ fontWeight: 600 }}>{row.value}</span>
@@ -893,7 +896,7 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
                       >
                         <span className="sg-mono" style={{ color: "var(--turf-light)" }}>{i + 1}</span>
                         <span>
-                          {row.player.name}{" "}
+                          <span style={allStats?.[row.player.id]?.ir ? IR_STYLE : undefined}>{row.player.name}</span>{" "}
                           <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.player.team}</span>
                         </span>
                         <span className="sg-mono" style={{ fontWeight: 600 }}>{row.value}</span>
@@ -928,7 +931,7 @@ function Leaderboards({ onBack, onSelectTeam, isAdmin, adminKey }) {
                       {row.position} · #1 of #{row.count} {PFF_LEADER_PLURAL[row.position] || row.position.toLowerCase()}
                     </span>
                     <br />
-                    {row.player.name} <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.player.team}</span>
+                    <span style={allStats?.[row.player.id]?.ir ? IR_STYLE : undefined}>{row.player.name}</span> <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.player.team}</span>
                   </span>
                   <span className="sg-mono" style={{ fontWeight: 600, color: "var(--brick)", alignSelf: "center" }}>{row.value}</span>
                 </div>
@@ -1024,7 +1027,7 @@ function FreeAgents({ onBack, onSelectTeam }) {
                     {row.pos} · #1 of #{row.count} available {FA_POSITION_LABEL[row.pos] || row.pos}
                   </span>
                   <br />
-                  {row.name} <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.nflTeam}</span>
+                  <span style={row.ir ? IR_STYLE : undefined}>{row.name}</span> <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.nflTeam}</span>
                   {row.statLine && (
                     <>
                       <br />
@@ -1061,7 +1064,7 @@ function FreeAgents({ onBack, onSelectTeam }) {
                       >
                         <span className="sg-mono" style={{ color: "var(--turf-light)" }}>{i + 1}</span>
                         <span>
-                          {row.name}{" "}
+                          <span style={row.ir ? IR_STYLE : undefined}>{row.name}</span>{" "}
                           <span className="sg-mono" style={{ fontSize: 11, color: "var(--turf)" }}>· {row.nflTeam} · {row.pos}</span>
                         </span>
                         <span className="sg-mono" style={{ fontWeight: 600 }}>{row[key]}</span>
