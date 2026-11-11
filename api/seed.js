@@ -70,8 +70,10 @@ export default async function handler(req, res) {
         const seed = SEASON_2026_SEEDS[id];
         const hasPff = seed && seed.pff != null;
         const cur = existing[id];
-        if (!hasPff && cur && (cur.pff !== undefined || cur.pffPos !== undefined)) {
-          const { pff, pffPos, ...rest } = cur;
+        const staleIr = cur && cur.ir && !(seed && seed.ir);
+        if (cur && ((!hasPff && (cur.pff !== undefined || cur.pffPos !== undefined)) || staleIr)) {
+          const { pff, pffPos, ir, ...kept } = cur;
+          const rest = hasPff ? { ...kept, pff, pffPos, ...(seed && seed.ir ? { ir } : null) } : kept;
           existing[id] = { ...rest, updatedAt: new Date().toISOString() };
           cleared++;
           changedAny = true;
