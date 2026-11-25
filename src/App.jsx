@@ -426,7 +426,7 @@ function fieldsForPosition(positionCombo) {
   else if (["Split End", "Flanker", "Tight End"].includes(first)) fields = ["rec", "recYds", "recTD"];
   else if (DLINE_EDGE_POSITIONS.has(first)) fields = ["tackles", "sacks", "tfLoss"];
   else if (LINEBACKER_POSITIONS.has(first)) fields = ["tackles", "sacks", "tfLoss", "int"];
-  else if (DB_POSITIONS.has(first)) fields = ["tackles", "int"];
+  else if (DB_POSITIONS.has(first)) fields = ["tackles", "tfLoss", "int"];
   else if (first === "Punter") fields = ["punts", "puntYds"];
   else if (first === "Place Kicker") fields = ["fgm", "fga", "xpm", "xpa"];
   else fields = []; // OL: PFF only
@@ -972,6 +972,7 @@ function FreeAgents({ onBack, onSelectTeam }) {
       { key: "recYds", label: "Receiving Yards" },
       { key: "tackles", label: "Tackles" },
       { key: "sacks", label: "Sacks" },
+      { key: "tfLoss", label: "Tackles For Loss" },
       { key: "int", label: "Interceptions" },
     ];
     const result = {};
